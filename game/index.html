@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Api Langit — Water Bomber</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1410; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #hud { position: fixed; inset: 0; pointer-events: none; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: #fff; }
+  .panel { position: absolute; background: rgba(12, 14, 18, 0.62); border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; padding: 10px 14px; backdrop-filter: blur(2px); }
+  .panel .big { font-size: 26px; font-weight: 700; letter-spacing: 0.5px; line-height: 1.15; }
+  .panel .sub { font-size: 15px; font-weight: 600; opacity: 0.92; margin-top: 2px; }
+  #hud-tl { top: 16px; left: 16px; min-width: 210px; }
+  #hud-tr { top: 16px; right: 16px; min-width: 260px; text-align: right; }
+  #hud-bl { bottom: 16px; left: 16px; min-width: 250px; }
+  #hud-br { bottom: 16px; right: 16px; min-width: 250px; text-align: right; }
+  #hud-objective { top: 16px; left: 50%; transform: translateX(-50%); background: rgba(12,14,18,0.62); border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; padding: 9px 18px; font-size: 17px; font-weight: 700; letter-spacing: 1px; white-space: nowrap; }
+  #hud-status { bottom: 16px; left: 50%; transform: translateX(-50%); background: rgba(12,14,18,0.55); border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; letter-spacing: 0.5px; white-space: nowrap; }
+  #hud-stall { top: 38%; left: 50%; transform: translateX(-50%); color: #ff5a3c; font-size: 30px; font-weight: 800; letter-spacing: 2px; text-shadow: 0 2px 12px rgba(0,0,0,0.8); display: none; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .bar-row .label { font-size: 15px; font-weight: 700; width: 110px; text-align: left; }
+  .bar { flex: 1; height: 12px; background: rgba(255,255,255,0.18); border-radius: 6px; overflow: hidden; }
+  .bar > div { height: 100%; border-radius: 6px; }
+  .bar .water { background: #3aa0ff; }
+  .bar .fuel { background: #f2c230; }
+  .bar .fuel.low { background: #ff5a3c; }
+  .bar .fire { background: #ff5a1e; }
+  .bar-row .pct { font-size: 16px; font-weight: 700; width: 52px; text-align: right; }
+  #hud-minimap { position: absolute; top: 118px; right: 16px; border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; background: rgba(12,14,18,0.55); }
+  /* Overlays: menu and end screens. */
+  .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(10, 8, 6, 0.55); color: #fff; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; text-align: center; z-index: 5; }
+  .overlay h1 { font-size: 54px; margin: 0 0 6px; letter-spacing: 3px; color: #ffc93c; text-shadow: 0 3px 18px rgba(0,0,0,0.7); }
+  .overlay h2 { font-size: 20px; margin: 0 0 18px; font-weight: 600; opacity: 0.95; }
+  .overlay .keys { font-size: 16px; line-height: 1.9; background: rgba(12,14,18,0.6); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; padding: 14px 26px; }
+  .overlay .keys b { color: #ffc93c; }
+  .overlay .go { margin-top: 20px; font-size: 19px; font-weight: 700; letter-spacing: 1px; }
+  #end { display: none; }
+  #end-title { font-size: 44px; }
+  #end-lines { font-size: 19px; line-height: 1.8; margin-top: 8px; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+</style>
+</head>
+<body>
+<canvas id="game" aria-label="Api Langit: fly the water bomber, scoop water from the lake and drop it on the forest fire"></canvas>
+<div id="hud">
+  <div class="panel" id="hud-tl">
+    <div class="big" id="hud-alt">ALT: 0 FT</div>
+    <div class="big" id="hud-spd">SPD: 0 KTS</div>
+  </div>
+  <div class="panel" id="hud-tr">
+    <div class="big" id="hud-hdg">HDG: 0° N</div>
+    <div class="sub" id="hud-waypoint">WAYPOINT → FIRE ZONE</div>
+  </div>
+  <div class="panel" id="hud-bl">
+    <div class="bar-row"><span class="label">💧 WATER</span><div class="bar"><div class="water" id="hud-water-bar" style="width:0%"></div></div><span class="pct" id="hud-water-pct">0%</span></div>
+    <div class="bar-row"><span class="label">⛽ FUEL</span><div class="bar"><div class="fuel" id="hud-fuel-bar" style="width:100%"></div></div><span class="pct" id="hud-fuel-pct">100%</span></div>
+  </div>
+  <div class="panel" id="hud-br">
+    <div class="bar-row"><span class="label">🔥 FIRE</span><div class="bar"><div class="fire" id="hud-fire-bar" style="width:0%"></div></div><span class="pct" id="hud-fire-pct">0%</span></div>
+    <div class="big" id="hud-score" style="margin-top:6px">SCORE: 0</div>
+  </div>
+  <div id="hud-objective">API LANGIT — WATER BOMBER</div>
+  <div id="hud-status">PRESS ENTER TO FLY</div>
+  <div id="hud-stall">⚠ STALL — NOSE DOWN, ADD THROTTLE ⚠</div>
+  <canvas id="hud-minimap" width="150" height="150"></canvas>
+</div>
+<div class="overlay" id="menu">
+  <h1>API LANGIT</h1>
+  <h2>Water bomber — put out the forest fire before it spreads</h2>
+  <div class="keys">
+    <div><b>W / ↑</b> climb &nbsp;·&nbsp; <b>S / ↓</b> descend</div>
+    <div><b>A / D</b> or <b>← / →</b> bank &nbsp;·&nbsp; <b>Q / E</b> rudder</div>
+    <div><b>Shift</b> throttle up &nbsp;·&nbsp; <b>Ctrl</b> throttle down</div>
+    <div><b>Space</b> drop water &nbsp;·&nbsp; <b>C</b> cockpit / chase camera</div>
+    <div><b>P</b> pause</div>
+    <div style="margin-top:8px">Scoop low over the lake, then drop on the fire.<br>Land on the strip to refuel. Mind your fuel.</div>
+  </div>
+  <div class="go">PRESS ENTER OR CLICK TO FLY</div>
+</div>
+<div class="overlay" id="end">
+  <h1 id="end-title">MISSION COMPLETE</h1>
+  <div id="end-lines"></div>
+  <div class="go">PRESS ENTER TO FLY AGAIN</div>
+</div>
+<p id="status" role="status" aria-live="polite"></p>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.min.js" } }
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
