@@ -81,7 +81,7 @@ export function createWorld(scene, seed) {
   scene.add(hemi);
   // Haze far enough out that the distant ridges keep their colour
   // instead of washing tan.
-  scene.fog = new THREE.Fog(0xe8b878, 900, 4200);
+  scene.fog = new THREE.Fog(0xe8b878, 1400, 5200);
 
   // ---- Terrain: displaced plane with vertex colours.
   const seg = 140;
@@ -209,16 +209,100 @@ export function createWorld(scene, seed) {
   scene.add(trunks);
   scene.add(cones);
 
-  // ---- Distant mountain silhouettes: wide, low ridges, not pyramids.
-  // Broad bases and modest heights read as a mountain rim from the valley.
-  const ridgeMat = new THREE.MeshLambertMaterial({ color: 0x46536e });
-  for (let i = 0; i < 14; i++) {
-    const a = (i / 14) * Math.PI * 2 + 0.2;
-    const r = 2050 + ((i * 137) % 260);
-    const hgt = 190 + ((i * 89) % 150);
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(560 + ((i * 53) % 200), hgt, 7), ridgeMat);
-    cone.position.set(Math.cos(a) * r, hgt * 0.32, Math.sin(a) * r);
-    scene.add(cone);
+  // ---- Distant mountain silhouettes: irregular ridged peaks, not pyramids.
+  // Each peak is a cone whose vertices are displaced with a seeded random
+  // (ragged flanks, leaning apex) and rendered flat-shaded, so the facets
+  // read as rock instead of a smooth triangle. Heights, widths and rocky
+  // colours vary, the peaks cluster unevenly, and they stand tall enough
+  // to clear the smooth terrain rim behind the valley.
+  const ridgeColors = [0x3d4550, 0x4a4640, 0x37404e, 0x524a3e, 0x333c48];
+  const ridgeRand = (() => {
+    let s = seed * 104729 + 77;
+    return () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 4294967296;
+    };
+  })();
+  function displacePeak(geo, hgt, base, amount) {
+    const p = geo.attributes.position;
+    const leanX = (ridgeRand() - 0.5) * base * 0.5;
+    const leanZ = (ridgeRand() - 0.5) * base * 0.5;
+    for (let v = 0; v < p.count; v++) {
+      const vx = p.getX(v);
+      const vy = p.getY(v);
+      const vz = p.getZ(v);
+      // k = 1 at the base, 0 at the tip: the flanks go ragged and wavy,
+      // the tip stays sharp but leans sideways.
+      const k = 1 - (vy + hgt / 2) / hgt;
+      p.setX(v, vx + (ridgeRand() - 0.5) * base * amount * k + leanX * (1 - k));
+      p.setZ(v, vz + (ridgeRand() - 0.5) * base * amount * k + leanZ * (1 - k));
+      p.setY(v, vy + (ridgeRand() - 0.5) * hgt * 0.08 * k);
+    }
+    geo.computeVertexNormals();
+    return geo;
+  }
+  for (let i = 0; i < 18; i++) {
+    // Uneven spacing: clusters and gaps, like a real range.
+    const a = (i / 18) * Math.PI * 2 + (ridgeRand() - 0.5) * 0.55;
+    const r = 1500 + ridgeRand() * 420;
+    const hgt = 320 + ridgeRand() * 300;
+    const base = 380 + ridgeRand() * 320;
+    const mat = new THREE.MeshLambertMaterial({
+      color: ridgeColors[i % ridgeColors.length],
+      flatShading: true,
+    });
+    const peak = new THREE.Mesh(
+      displacePeak(new THREE.ConeGeometry(base, hgt, 12, 4), hgt, base, 0.55),
+      mat,
+    );
+    // Squash some peaks wide and low, stretch others tall and narrow.
+    peak.scale.set(1 + (ridgeRand() - 0.5) * 0.8, 1, 1 + (ridgeRand() - 0.5) * 0.8);
+    peak.position.set(Math.cos(a) * r, hgt * 0.28, Math.sin(a) * r);
+    peak.rotation.y = ridgeRand() * Math.PI;
+    scene.add(peak);
+    // Shoulder peak on one flank: breaks the single-triangle silhouette.
+    const shHgt = hgt * (0.45 + ridgeRand() * 0.2);
+    const shBase = base * (0.5 + ridgeRand() * 0.2);
+    const shAngle = a + (ridgeRand() - 0.5) * 0.5;
+    const shR = r + (ridgeRand() - 0.5) * 260;
+    const shoulder = new THREE.Mesh(
+      displacePeak(new THREE.ConeGeometry(shBase, shHgt, 10, 3), shHgt, shBase, 0.5),
+      new THREE.MeshLambertMaterial({
+        color: ridgeColors[(i + 2) % ridgeColors.length],
+        flatShading: true,
+      }),
+    );
+    shoulder.position.set(Math.cos(shAngle) * shR, shHgt * 0.28, Math.sin(shAngle) * shR);
+    shoulder.rotation.y = ridgeRand() * Math.PI;
+    scene.add(shoulder);
+  }
+  // Rocky outcrops on the valley rim itself, so the smooth rim slope is
+  // broken up by jagged rock in the mid-ground too.
+  for (let i = 0; i < 8; i++) {
+    const a = ridgeRand() * Math.PI * 2;
+    const r = 1080 + ridgeRand() * 160;
+    const ox = Math.cos(a) * r;
+    const oz = Math.sin(a) * r;
+    const hgt = 70 + ridgeRand() * 90;
+    const base = 90 + ridgeRand() * 90;
+    const geo = new THREE.ConeGeometry(base, hgt, 8, 2);
+    const p = geo.attributes.position;
+    for (let v = 0; v < p.count; v++) {
+      const vx = p.getX(v);
+      const vy = p.getY(v);
+      const vz = p.getZ(v);
+      const k = 1 - (vy + hgt / 2) / hgt;
+      p.setX(v, vx * (1 + (ridgeRand() - 0.5) * 0.6 * k));
+      p.setZ(v, vz * (1 + (ridgeRand() - 0.5) * 0.6 * k));
+    }
+    geo.computeVertexNormals();
+    const outcrop = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+      color: ridgeColors[(i + 2) % ridgeColors.length],
+      flatShading: true,
+    }));
+    outcrop.position.set(ox, terrainHeight(ox, oz) + hgt * 0.18, oz);
+    outcrop.rotation.y = ridgeRand() * Math.PI;
+    scene.add(outcrop);
   }
 
   function isOverLake(x, z) {

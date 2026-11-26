@@ -137,10 +137,12 @@ function updateCamera(dt) {
     Math.cos(flight.heading) * cp,
   );
   if (cameraMode === 'cockpit') {
-    // First person: the pilot's eye, just above and behind the canopy,
-    // looking forward over the nose. The nose and the panel sit at the
-    // bottom edge; the fire and the lake are ahead.
-    const eye = new THREE.Vector3(0, 2.2, 2.5);
+    // First person: the pilot's eye, high and behind the dash, so the
+    // instrument panel and the windshield frame fill the bottom and the
+    // edges of the view and the fire reads through the windshield above
+    // the dash.
+    if (camera.fov !== 62) { camera.fov = 62; camera.updateProjectionMatrix(); }
+    const eye = new THREE.Vector3(0, 2.5, 0.6);
     aircraftModel.group.localToWorld(eye);
     camera.position.copy(eye);
     camera.lookAt(
@@ -150,16 +152,20 @@ function updateCamera(dt) {
     );
   } else if (cameraMode === 'wide') {
     // High establishing shot: framed on the fire, so the valley, the
-    // fire, the lake and the strip all read in one frame.
+    // fire, the lake and the strip all read in one frame. The camera sits
+    // close enough (and the lens a touch narrower) that the aircraft is a
+    // recognisable plane in the foreground, not a dot.
+    if (camera.fov !== 50) { camera.fov = 50; camera.updateProjectionMatrix(); }
     const fz = fireSystem.zones[0];
     const fx = fz ? fz.x : 0;
     const fzz = fz ? fz.z : 0;
-    camera.position.set(fx - 200, 150, fzz - 260);
-    camera.lookAt(fx, 60, fzz);
+    camera.position.set(fx - 140, 130, fzz - 180);
+    camera.lookAt(fx, 50, fzz);
   } else {
     // Chase: behind and above, eased so it never fights the pilot.
     // In screenshot mode the camera snaps (no lerp) so the shot is exact.
     // A shot may override distance / height / lateral offset.
+    if (camera.fov !== 62) { camera.fov = 62; camera.updateProjectionMatrix(); }
     const chaseDist = game.chaseDist ?? CONFIG.chaseDistance;
     const chaseH = game.chaseHeight ?? CONFIG.chaseHeight;
     const chaseSide = game.chaseSide ?? 0;

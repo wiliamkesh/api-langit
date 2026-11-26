@@ -44,40 +44,65 @@ export function createAircraft(scene) {
 
   // Cockpit windows: a dark canopy band at the front. It is glassy so the
   // cockpit camera can see through it, and it reads as a canopy outside.
+  // Kept very clear (low opacity, no depth write) so the pilot's view
+  // through the windshield stays bright.
   const canopy = new THREE.Mesh(
     new THREE.BoxGeometry(2.5, 1.0, 2.2),
-    new THREE.MeshPhongMaterial({ color: 0x1a2e44, shininess: 90, transparent: true, opacity: 0.45 }),
+    new THREE.MeshPhongMaterial({ color: 0x1a2e44, shininess: 90, transparent: true, opacity: 0.16, depthWrite: false }),
   );
   canopy.position.set(0, 0.95, 3.1);
   group.add(canopy);
 
-  // Instrument panel: a low dark dash with five lit gauge faces, seen from
-  // the cockpit camera (which sits above and behind it). The faces are unlit
-  // material so they glow against the dark panel.
-  const dash = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.9, 0.3), dark);
-  dash.position.set(0, 0.7, 4.4);
+  // Instrument panel: a tall dark dash with five big lit gauge faces, seen
+  // from the cockpit camera (which sits behind and above it). The faces are
+  // unlit material so they glow against the dark panel. The dash top sits
+  // just above the nose, so the gauges read over it, and a windshield
+  // frame (side pillars + top bar) wraps the view, so the cockpit shot
+  // reads as "inside the cockpit".
+  const dash = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.0, 0.3), dark);
+  dash.position.set(0, 1.3, 3.3);
   group.add(dash);
   const faceMat = new THREE.MeshBasicMaterial({ color: 0xd8e4ea });
   const needleMat = new THREE.MeshBasicMaterial({ color: 0xd23c1e });
+  const warnMat = new THREE.MeshBasicMaterial({ color: 0xffb020 });
   for (let i = 0; i < 5; i++) {
-    const gx = -1.0 + i * 0.5;
-    const bezel = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.1, 12), dark);
+    const gx = -1.24 + i * 0.62;
+    const bezel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.1, 14), dark);
     bezel.rotation.x = Math.PI / 2;
-    bezel.position.set(gx, 0.7, 4.22);
+    bezel.position.set(gx, 1.5, 3.16);
     group.add(bezel);
-    const face = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.12, 12), faceMat);
+    const face = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.12, 14), faceMat);
     face.rotation.x = Math.PI / 2;
-    face.position.set(gx, 0.7, 4.2);
+    face.position.set(gx, 1.5, 3.12);
     group.add(face);
-    const needle = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.19, 0.05), needleMat);
-    needle.position.set(gx, 0.7, 4.12);
+    const needle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.05), needleMat);
+    needle.position.set(gx, 1.5, 3.05);
     needle.rotation.z = -0.6 + i * 0.3;
     group.add(needle);
   }
+  // Small amber warning lights row under the gauges.
+  for (let i = 0; i < 4; i++) {
+    const lamp = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.05), warnMat);
+    lamp.position.set(-0.6 + i * 0.4, 0.95, 3.12);
+    group.add(lamp);
+  }
   // Control yoke in front of the panel.
   const yoke = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.08, 6, 12), dark);
-  yoke.position.set(0, 0.45, 3.9);
+  yoke.position.set(0, 0.7, 2.9);
   group.add(yoke);
+  // Windshield frame: raked side pillars + top crossbar, so the forward
+  // view is framed like a real cockpit instead of open sky.
+  for (const side of [-1, 1]) {
+    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.5, 0.24), dark);
+    pillar.position.set(side * 1.7, 2.4, 2.9);
+    pillar.rotation.z = -side * 0.1;
+    pillar.rotation.x = -0.15;
+    group.add(pillar);
+  }
+  const topBar = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.22, 0.22), dark);
+  topBar.position.set(0, 3.1, 2.9);
+  topBar.rotation.x = -0.15;
+  group.add(topBar);
 
   // Shoulder wing, red tips.
   const wing = new THREE.Mesh(new THREE.BoxGeometry(17, 0.35, 2.6), yellow);

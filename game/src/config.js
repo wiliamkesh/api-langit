@@ -64,5 +64,5 @@ export const CONFIG = {
   chaseDistance: 26,
   chaseHeight: 7,
   chaseLerp: 4.5,
-  cockpitOffset: { x: 0, y: 2.2, z: 3.4 },
+  cockpitOffset: { x: 0, y: 2.5, z: 0.6 },
 };

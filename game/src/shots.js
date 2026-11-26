@@ -86,10 +86,11 @@ export function applyShot(name, game) {
 
   if (name === 'cockpit') {
     // First-person from the cockpit: fire and lake ahead, panel lit.
-    // Close enough (150 m) that the fire reads, not a dot on the horizon.
-    flight.pos.set(SHOT_FIRE.x - 130, groundAt(SHOT_FIRE.x - 130, SHOT_FIRE.z - 60) + 70, SHOT_FIRE.z - 60);
+    // Low and close (130 m) with the nose pitched down, so the fire sits
+    // high in the frame above the dash instead of hiding behind it.
+    flight.pos.set(SHOT_FIRE.x - 110, groundAt(SHOT_FIRE.x - 110, SHOT_FIRE.z - 50) + 35, SHOT_FIRE.z - 50);
     aimAt(SHOT_FIRE.x, SHOT_FIRE.z, 0, 0);
-    flight.pitch = -0.06;
+    flight.pitch = -0.14;
     flight.roll = 0;
     flight.speed = 46;
     flight.throttle = 0.7;
@@ -102,9 +103,10 @@ export function applyShot(name, game) {
   }
 
   // 'wide' and anything unknown: a high establishing shot of the valley.
-  // The plane flies 80 m out from the fire so it reads in the frame;
-  // the wide camera itself is framed on the fire (see main.js).
-  flight.pos.set(SHOT_FIRE.x - 65, groundAt(SHOT_FIRE.x - 65, SHOT_FIRE.z - 45) + 90, SHOT_FIRE.z - 45);
+  // The plane flies on the camera-to-fire line, close to the camera, so it
+  // reads as a recognisable aircraft in the foreground with the fire
+  // and its target ring behind it (see the wide camera in main.js).
+  flight.pos.set(SHOT_FIRE.x - 90, groundAt(SHOT_FIRE.x - 90, SHOT_FIRE.z - 90) + 70, SHOT_FIRE.z - 90);
   aimAt(SHOT_FIRE.x, SHOT_FIRE.z, 0, 0);
   flight.speed = 40;
   flight.throttle = 0.6;
