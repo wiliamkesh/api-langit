@@ -23,7 +23,13 @@ export function makeTerrainHeight(seed) {
   return function terrainHeight(x, z) {
     const r = Math.hypot(x, z) / worldHalf;
     // Mountain rim: only beyond r=0.62, so the valley floor stays flat.
-    const rim = Math.pow(Math.max(0, r - 0.62) / 0.38, 2) * 240;
+    // The radius is capped at 1.0: without the cap the square terrain's
+    // corners (r=1.41) spike to ~1050 m and read as one giant smooth tan
+    // pyramid from the lake. The rim is also roughened with noise so the
+    // ridge silhouette is jagged, not a clean cone.
+    const rc = Math.min(r, 1.0);
+    const rimBase = Math.pow(Math.max(0, rc - 0.62) / 0.38, 2) * 240;
+    const rim = rimBase * (0.55 + 0.9 * fbm(x * 0.0016 + 31.7, z * 0.0016 + 11.2));
     // Rolling hills, masked out near the lake and the strip so both stay clean.
     // (falloff is 1 close and 0 far, so the mask is its inverse.)
     const dLake = Math.hypot(x - lakeCenter.x, z - lakeCenter.z);
@@ -92,8 +98,12 @@ export function createWorld(scene, seed) {
   const cGrass = new THREE.Color(0x4a7a3a);
   const cGrassDry = new THREE.Color(0x7a8a3f);
   const cRock = new THREE.Color(0x6e6a66);
+  const cRockDark = new THREE.Color(0x46423e);
   const cSand = new THREE.Color(0xb59a6a);
   const cScorch = new THREE.Color(0x2e2620);
+  // Separate noise field for rock patches, so high ground is mottled
+  // instead of one uniform tan.
+  const cfbm = makeFbm(seed + 101);
   const tmp = new THREE.Color();
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
@@ -104,6 +114,10 @@ export function createWorld(scene, seed) {
     const hN = clamp01(h / 180);
     tmp.copy(cGrass).lerp(cGrassDry, clamp01((h - 40) / 90));
     tmp.lerp(cRock, hN * hN);
+    // Rocky variation: darker patches on high ground so distant ridges
+    // read as broken rock instead of uniform tan.
+    const rockPatch = clamp01((cfbm(x * 0.004 + 53.1, z * 0.004 + 17.9) - 0.3) * 1.4);
+    tmp.lerp(cRockDark, rockPatch * hN * hN);
     // Sandy shore where the ground meets the water.
     const dLake = Math.hypot(x - lakeCenter.x, z - lakeCenter.z);
     if (h < waterLevel + 3 && dLake < lakeRadius + 90) tmp.copy(cSand).lerp(tmp, 0.35);
